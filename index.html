@@ -46,39 +46,37 @@
     const videoElem = document.getElementById('video');
     const resultElem = document.getElementById('result');
 
-    // Define your trusted domains here (adjust as needed)
+    // Trusted domains list
     const trustedDomains = [
       "example.com",
       "mytrustedsite.org",
       "mycompany.net"
     ];
 
+    // Function to check if a URL is trusted
     function isTrustedUrl(url) {
       try {
         const parsedUrl = new URL(url);
         return trustedDomains.some(domain => parsedUrl.hostname.endsWith(domain));
       } catch {
-        // If it's not a valid URL, treat it as untrusted
+        // Not a valid URL → untrusted
         return false;
       }
     }
 
+    // Create scanner
     const scanner = new QrScanner(videoElem, result => {
       if (isTrustedUrl(result)) {
         resultElem.innerHTML = `<span id="trusted">✅ Trusted QR Code: ${result}</span>`;
-        // Optionally stop scanning on first trusted scan:
-        // scanner.stop();
-
-        // If you want, send result to parent app via postMessage:
-        // window.parent.postMessage({ scannedData: result, trusted: true }, "*");
-
+        window.open(result, "_blank"); // Open trusted link
+        scanner.stop(); // Stop scanning after opening
       } else {
-        resultElem.innerHTML = `<span id="untrusted">⚠️ Untrusted or potentially fraudulent QR Code detected!</span>`;
-        // Optionally pause scanning or alert user
-        // scanner.pause();
+        resultElem.innerHTML = `<span id="untrusted">⚠️ Untrusted or potentially fraudulent QR Code detected: ${result}</span>`;
+        // Optionally: block opening untrusted links
       }
     });
 
+    // Start scanning
     scanner.start();
   </script>
 
