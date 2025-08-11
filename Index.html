@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>QR Code Scanner with Fraud Filter</title>
+  <style>
+    body {
+      margin: 0; 
+      font-family: Arial, sans-serif; 
+      text-align: center; 
+      background: #222; 
+      color: white;
+    }
+    video {
+      width: 100vw; 
+      height: 100vh; 
+      object-fit: cover;
+    }
+    #result {
+      position: fixed; 
+      top: 10px; 
+      left: 0; 
+      right: 0; 
+      background: rgba(0,0,0,0.7); 
+      font-size: 24px; 
+      padding: 10px;
+      z-index: 10;
+    }
+    #trusted {
+      color: #4CAF50;
+    }
+    #untrusted {
+      color: #FF5252;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="result">Scanning...</div>
+  <video id="video"></video>
+
+  <script type="module">
+    import QrScanner from "https://unpkg.com/qr-scanner@1.4.2/qr-scanner.min.js";
+
+    const videoElem = document.getElementById('video');
+    const resultElem = document.getElementById('result');
+
+    // Define your trusted domains here (adjust as needed)
+    const trustedDomains = [
+      "example.com",
+      "mytrustedsite.org",
+      "mycompany.net"
+    ];
+
+    function isTrustedUrl(url) {
+      try {
+        const parsedUrl = new URL(url);
+        return trustedDomains.some(domain => parsedUrl.hostname.endsWith(domain));
+      } catch {
+        // If it's not a valid URL, treat it as untrusted
+        return false;
+      }
+    }
+
+    const scanner = new QrScanner(videoElem, result => {
+      if (isTrustedUrl(result)) {
+        resultElem.innerHTML = `<span id="trusted">✅ Trusted QR Code: ${result}</span>`;
+        // Optionally stop scanning on first trusted scan:
+        // scanner.stop();
+
+        // If you want, send result to parent app via postMessage:
+        // window.parent.postMessage({ scannedData: result, trusted: true }, "*");
+
+      } else {
+        resultElem.innerHTML = `<span id="untrusted">⚠️ Untrusted or potentially fraudulent QR Code detected!</span>`;
+        // Optionally pause scanning or alert user
+        // scanner.pause();
+      }
+    });
+
+    scanner.start();
+  </script>
+
+</body>
+</html>
