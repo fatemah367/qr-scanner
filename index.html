@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>QR Code Scanner</title>
 <style>
   body {
@@ -13,82 +13,96 @@
     display: flex;
     flex-direction: column;
     height: 100vh;
-    overflow: hidden; /* No scrolling */
+    overflow: hidden;
   }
+
   #reader {
     flex: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    width: 100%;
+    object-fit: cover;
   }
-  #result-container {
-    background: #111;
+
+  #result {
+    padding: 12px;
+    text-align: center;
+    background: rgba(0,0,0,0.85);
+    font-size: 16px;
+    word-break: break-word;
+  }
+
+  #result a {
+    color: #0f0;
+    text-decoration: underline;
+  }
+
+  #openBtn {
+    display: block;
+    width: 90%;
+    max-width: 300px;
+    margin: 10px auto 15px auto;
     padding: 10px;
+    font-size: 16px;
+    color: #fff;
+    background: #1a73e8;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
     text-align: center;
   }
-  #result {
-    font-size: 16px;
-    word-break: break-all;
-    margin-bottom: 10px;
-  }
-  button {
-    padding: 10px 20px;
-    font-size: 16px;
-    background: #28a745;
-    border: none;
-    color: white;
-    border-radius: 5px;
-    cursor: pointer;
-  }
-  button:disabled {
+
+  #openBtn:disabled {
     background: #555;
+    cursor: not-allowed;
   }
 </style>
 </head>
 <body>
 
 <div id="reader"></div>
-
-<div id="result-container">
-  <div id="result">Scan a QR code...</div>
-  <button id="openBtn" style="display:none;">Open Link</button>
-</div>
+<div id="result">Scan a QR code...</div>
+<button id="openBtn" disabled>Open Last Scanned Link</button>
 
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
 let lastResult = '';
-const openBtn = document.getElementById('openBtn');
 const resultDiv = document.getElementById('result');
+const openBtn = document.getElementById('openBtn');
 
 function isSafeLink(url) {
   try {
     const u = new URL(url);
-    if (u.protocol !== 'https:') return false; // Must be HTTPS
+    if (u.protocol !== 'https:') return false;
     const blocked = ["phishing.com","malware.test","examplebad.com"];
     return !blocked.some(domain => u.hostname.includes(domain));
-  } catch (e) {
-    return false; // Not even a valid URL
+  } catch {
+    return false;
   }
 }
 
 function handleScan(decodedText) {
   if (decodedText === lastResult) return;
   lastResult = decodedText;
-  resultDiv.textContent = decodedText;
+  openBtn.disabled = false;
 
   if (isSafeLink(decodedText)) {
-    openBtn.style.display = 'inline-block';
+    const opened = window.open(decodedText, '_blank');
+    if (!opened) {
+      resultDiv.innerHTML = `Safe link detected: <a href="${decodedText}" target="_blank">${decodedText}</a>`;
+    } else {
+      resultDiv.textContent = `Safe link opened automatically!`;
+    }
   } else {
-    openBtn.style.display = 'none';
-    alert("⚠ Suspicious or invalid link detected!");
+    if (confirm("⚠ Suspicious link detected! Do you want to open it anyway?")) {
+      window.open(decodedText, '_blank');
+    }
+    resultDiv.innerHTML = `Scanned: <a href="${decodedText}" target="_blank">${decodedText}</a>`;
   }
 }
 
+// Open button click handler
 openBtn.addEventListener('click', () => {
-  if (isSafeLink(lastResult)) {
+  if (lastResult) {
     window.open(lastResult, '_blank');
-  } else {
-    alert("⚠ Suspicious or invalid link detected!");
   }
 });
 
@@ -97,9 +111,11 @@ Html5Qrcode.getCameras().then(cameras => {
   if (cameras && cameras.length) {
     html5QrCode.start(
       { facingMode: "environment" },
-      { fps: 10, qrbox: { width: 250, height: 250 } }, // Square scanner
+      { fps: 10, qrbox: (window.innerWidth < 400 ? 250 : 300) },
       handleScan
     );
+  } else {
+    resultDiv.textContent = "No camera found!";
   }
 }).catch(err => {
   console.error(err);
