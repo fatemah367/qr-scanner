@@ -2,114 +2,101 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QR Scanner</title>
-
-<!-- Manifest (embedded) -->
-<link rel="manifest" id="app-manifest">
-<script>
-document.getElementById("app-manifest").setAttribute(
-    "href",
-    "data:application/json," + encodeURIComponent(JSON.stringify({
-        "name": "QR Scanner",
-        "short_name": "QRScan",
-        "start_url": ".",
-        "display": "standalone",
-        "background_color": "#ffffff",
-        "theme_color": "#000000",
-        "icons": []
-    }))
-);
-</script>
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>QR Code Scanner</title>
 <style>
-/* Your exact existing UI CSS here — unchanged */
-body {
-    margin: 0;
+  body {
     font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
     text-align: center;
-    background: #fff;
-}
-#preview {
+    background-color: #f8f8f8;
+  }
+  video {
     width: 100%;
     max-width: 500px;
     margin-top: 20px;
-}
-button {
-    padding: 10px 20px;
+    border: 2px solid #ccc;
+    border-radius: 10px;
+  }
+  #result {
     margin-top: 15px;
-    font-size: 16px;
+    font-size: 1.1em;
+    word-break: break-all;
+  }
+  #openBtn {
+    display: none;
+    margin-top: 10px;
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
     cursor: pointer;
-}
+  }
+  #openBtn:hover {
+    background-color: #0056b3;
+  }
 </style>
 </head>
 <body>
-
-<h1>QR Scanner</h1>
+<h2>QR Code Scanner</h2>
 <video id="preview"></video>
-<button id="openBtn" style="display:none;">Open Link</button>
+<div id="result"></div>
+<button id="openBtn">Open Link</button>
 
-<script src="https://unpkg.com/html5-qrcode/minified/html5-qrcode.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-// Start QR Scanner
-function startScanner() {
-    const html5QrCode = new Html5Qrcode("preview");
-    const qrConfig = { fps: 10, qrbox: 250 };
-    
-    html5QrCode.start(
-        { facingMode: "environment" },
-        qrConfig,
-        qrCodeMessage => {
-            handleQRCode(qrCodeMessage);
-        }
-    ).catch(err => console.error("QR Start Error:", err));
-}
+  const resultDiv = document.getElementById("result");
+  const openBtn = document.getElementById("openBtn");
 
-function handleQRCode(url) {
-    console.log("Scanned:", url);
+  function isThunkableWebview() {
+    return navigator.userAgent.includes("ThunkableWebViewer");
+  }
 
-    // Try automatic open
-    try {
-        window.location.href = url;
-    } catch (e) {
-        console.log("Auto open blocked:", e);
-        showFallback(url);
+  function openInNewTab(url) {
+    window.open(url, "_blank");
+  }
+
+  function handleScanSuccess(decodedText) {
+    resultDiv.textContent = decodedText;
+    openBtn.style.display = "inline-block";
+    openBtn.onclick = () => openInNewTab(decodedText);
+
+    if (/^https?:\/\//i.test(decodedText)) {
+      if (isThunkableWebview()) {
+        // Delay so Thunkable allows it
+        setTimeout(() => openInNewTab(decodedText), 200);
+      } else {
+        openInNewTab(decodedText);
+      }
     }
-}
+  }
 
-function showFallback(url) {
-    const btn = document.getElementById("openBtn");
-    btn.style.display = "inline-block";
-    btn.onclick = () => { window.open(url, "_blank"); };
-}
+  function handleScanError(error) {
+    // We ignore scan errors to keep scanning
+  }
 
-// Detect Thunkable WebViewer
-function isThunkableWebViewer() {
-    return navigator.userAgent.includes("ThunkableWebview");
-}
+  const html5QrCode = new Html5Qrcode("preview");
+  html5QrCode.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: 250 },
+    handleScanSuccess,
+    handleScanError
+  );
 
-// Adjust behaviour if Thunkable
-if (isThunkableWebViewer()) {
-    console.log("Running inside Thunkable Web Viewer");
-}
-
-startScanner();
+  // Silent offline mode via service worker
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      const swCode = `
+        self.addEventListener('install', e => { self.skipWaiting(); });
+        self.addEventListener('fetch', e => { e.respondWith(fetch(e.request).catch(() => caches.match(e.request))); });
+      `;
+      const blob = new Blob([swCode], { type: "application/javascript" });
+      const swUrl = URL.createObjectURL(blob);
+      navigator.serviceWorker.register(swUrl);
+    });
+  }
 </script>
-
-<!-- Offline service worker -->
-<script>
-const swCode = `
-self.addEventListener('install', e => {
-    e.waitUntil(caches.open('qr-cache').then(cache => cache.addAll(['./'])));
-});
-self.addEventListener('fetch', e => {
-    e.respondWith(caches.match(e.request).then(resp => resp || fetch(e.request)));
-});
-`;
-const blob = new Blob([swCode], { type: "application/javascript" });
-const swUrl = URL.createObjectURL(blob);
-navigator.serviceWorker.register(swUrl);
-</script>
-
 </body>
 </html>
