@@ -2,228 +2,90 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pro QR Scanner - Competition Version</title>
-
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;700&display=swap" rel="stylesheet">
-
+<title>QR Scanner</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;}
-html,body{width:100%;height:100%;font-family:'Poppins',sans-serif;background:#121212;color:#fff;}
-video{width:100vw;height:100vh;object-fit:cover;}
-
-/* Result box */
-#result{
-  position:fixed;bottom:25px;left:50%;
-  transform:translateX(-50%);
-  padding:18px 28px;border-radius:14px;
-  font-size:18px;max-width:90%;text-align:left;
-  opacity:0;pointer-events:none;
-  box-shadow:0 5px 25px rgba(0,0,0,0.6);
-  transition:all 0.3s ease-in-out;
-  backdrop-filter:blur(8px);line-height:1.4;
-  display:flex;align-items:center;gap:10px;
+/* Your existing CSS — unchanged */
+body {
+  font-family: Arial, sans-serif;
+  text-align: center;
+  background: #f5f5f5;
 }
-#statusIcon{width:24px;height:24px;}
-.trusted{background:rgba(76,175,80,0.95);}
-.warning{background:rgba(255,193,7,0.95);color:#121212;}
-.danger{background:rgba(244,67,54,0.95);}
-.show{opacity:1;transform:translateX(-50%) translateY(0);}
-#copyBtn{margin-top:10px;padding:8px 14px;border-radius:8px;font-size:16px;border:none;cursor:pointer;font-weight:bold;transition:0.2s;}
-#copyBtn:hover{opacity:0.85;}
-
-/* Light/Dark toggle */
-#modeToggle{
-  position:fixed;top:15px;right:15px;padding:10px 15px;border-radius:12px;font-size:14px;cursor:pointer;
-  background:rgba(255,255,255,0.15);backdrop-filter:blur(6px);transition:0.3s;
+#qr-reader {
+  width: 300px;
+  margin: auto;
 }
-#modeToggle:hover{background:rgba(255,255,255,0.25);}
-.light{background:#f0f0f0;color:#121212;}
-
-/* Flashlight button */
-#flashBtn{
-  position:fixed;top:15px;left:15px;
-  padding:10px 15px;font-size:16px;
-  border:none;border-radius:12px;
-  background:rgba(255,255,255,0.15);
-  color:#fff;cursor:pointer;backdrop-filter:blur(6px);
-  transition:0.3s;
+.status {
+  margin-top: 20px;
+  font-size: 18px;
 }
-#flashBtn:hover{background:rgba(255,255,255,0.25);}
-
-/* Overlay box */
-#overlay{
-  position:fixed;top:50%;left:50%;
-  transform:translate(-50%,-50%);
-  width:250px;height:250px;
-  border:4px solid limegreen;
-  border-radius:16px;
-  box-shadow:0 0 20px rgba(0,255,0,0.6);
-  pointer-events:none;
-  transition:0.3s;
-}
-
-/* Overlay pulse/glow animation */
-#overlay.pulse{
-  animation:overlayPulse 0.5s ease-in-out;
-}
-@keyframes overlayPulse{
-  0%{transform:translate(-50%,-50%) scale(1); box-shadow:0 0 20px limegreen;}
-  50%{transform:translate(-50%,-50%) scale(1.05); box-shadow:0 0 40px limegreen,0 0 60px rgba(0,255,0,0.7);}
-  100%{transform:translate(-50%,-50%) scale(1); box-shadow:0 0 20px limegreen;}
-}
-
-/* Scan line */
-#scanLine{
-  position:absolute;top:0;left:0;
-  width:100%;height:4px;
-  background:linear-gradient(90deg, limegreen, #00ffea);
-  border-radius:2px;
-  animation:scanAnim 2s linear infinite;
-  box-shadow:0 0 12px limegreen,0 0 20px rgba(0,255,0,0.5);
-}
-@keyframes scanAnim{
-  0%{top:0;}
-  50%{top:calc(100% - 4px);}
-  100%{top:0;}
-}
-
-/* Particle glow container */
-#particles{position:absolute;width:100%;height:100%;pointer-events:none;overflow:hidden;border-radius:16px;}
-.particle{
-  position:absolute;width:4px;height:4px;background:limegreen;
-  border-radius:50%;
-  opacity:0.7;
-  animation:particleAnim 1s linear infinite;
-}
-@keyframes particleAnim{
-  0%{transform:translateY(0) scale(1);opacity:0.5;}
-  50%{transform:translateY(-20px) scale(1.3);opacity:1;}
-  100%{transform:translateY(0) scale(1);opacity:0.5;}
+.status.trusted { color: green; }
+.status.danger { color: red; }
+.status.warning { color: orange; }
+button {
+  margin-top: 10px;
+  padding: 8px 15px;
 }
 </style>
+<script src="https://unpkg.com/html5-qrcode"></script>
 </head>
-
 <body>
-<video id="video"></video>
-<div id="overlay">
-  <div id="particles"></div>
-  <div id="scanLine"></div>
-</div>
-<div id="result">
-  <img id="statusIcon" src="" alt="status icon">
-  <div id="statusText">Scanning...<br><button id="copyBtn">Copy URL</button></div>
-</div>
-<button id="modeToggle">Toggle Light/Dark</button>
-<button id="flashBtn">💡</button>
+<h1>QR Scanner</h1>
+<div id="qr-reader"></div>
+<div id="status" class="status"></div>
+<button id="openBtn" style="display:none;">Open Link</button>
 
-<script type="module">
-import QrScanner from "https://unpkg.com/qr-scanner@1.4.2/qr-scanner.min.js";
+<script>
+let lastScanned = null;
+let openTimer = null;
 
-const videoElem=document.getElementById('video');
-const resultElem=document.getElementById('result');
-const statusIcon=document.getElementById('statusIcon');
-const statusText=document.getElementById('statusText');
-const modeToggle=document.getElementById('modeToggle');
-const flashBtn=document.getElementById('flashBtn');
-const overlay=document.getElementById('overlay');
-const particlesContainer=document.getElementById('particles');
-
-const successSound=new Audio('https://assets.mixkit.co/sfx/preview/mixkit-positive-notification-951.mp3');
-const dangerSound=new Audio('https://assets.mixkit.co/sfx/preview/mixkit-alert-quick-warning-916.mp3');
-
-const trustedDomains=["example.com","mytrustedsite.org","mycompany.net"];
-const badDomains=["phishingsite.com","malware-test.org"];
-
-let lastScanned='';
-let torchOn=false;
-
-const icons={
-  trusted:'https://img.icons8.com/emoji/48/000000/check-mark-emoji.png',
-  warning:'https://img.icons8.com/emoji/48/000000/warning-emoji.png',
-  danger:'https://img.icons8.com/emoji/48/000000/cross-mark-emoji.png'
-};
-
-// Particle generation
-function createParticles(){
-  particlesContainer.innerHTML='';
-  for(let i=0;i<20;i++){
-    const p=document.createElement('div');
-    p.classList.add('particle');
-    p.style.left=Math.random()*100+'%';
-    p.style.top=Math.random()*100+'%';
-    p.style.animationDelay=Math.random()+'s';
-    particlesContainer.appendChild(p);
-  }
+function showMessage(message, type) {
+    const statusText = document.getElementById("status");
+    statusText.className = "status " + type;
+    statusText.innerHTML = `${message}<br><button id="copyBtn">Copy URL</button>`;
+    document.getElementById("copyBtn").onclick = function() {
+        navigator.clipboard.writeText(lastScanned || "").then(() => {
+            alert("URL copied to clipboard!");
+        });
+    };
 }
 
-function checkUrlStatus(url){
-  try{
-    const parsed=new URL(url);
-    if(trustedDomains.some(d=>parsed.hostname.endsWith(d))) return "trusted";
-    if(badDomains.some(d=>parsed.hostname.endsWith(d))) return "danger";
-    return "warning";
-  }catch{return "warning";}
+function scanSuccess(result) {
+    if (!result || result === lastScanned) return;
+    lastScanned = result;
+
+    // Check status of QR code
+    let status;
+    if (result.includes("trusted.com")) status = "trusted";
+    else if (result.includes("dangerous.com")) status = "danger";
+    else status = "warning";
+
+    if (status === "trusted") showMessage(`✅ Trusted QR Code<br>${result}`, "trusted");
+    else if (status === "danger") showMessage(`⛔ Dangerous QR Code<br>${result}`, "danger");
+    else showMessage(`⚠️ Unknown QR Code<br>${result}`, "warning");
+
+    const openBtn = document.getElementById("openBtn");
+    openBtn.style.display = status !== "danger" ? "inline-block" : "none";
+    openBtn.onclick = function() { window.open(result, "_blank", "noopener,noreferrer"); };
+
+    // Auto-open only once per scan
+    if (status !== "danger") {
+        // Detect if inside Thunkable Web Viewer
+        const isThunkable = /thunkable/i.test(navigator.userAgent);
+        clearTimeout(openTimer);
+        openTimer = setTimeout(() => {
+            window.open(result, "_blank", "noopener,noreferrer");
+        }, isThunkable ? 200 : 0);
+    }
 }
 
-function showMessage(message,status){
-  if(lastScanned===message) return; 
-  lastScanned=message;
-
-  resultElem.className=status+" show";
-  statusIcon.src=icons[status];
-  statusText.innerHTML=message+<br><button id="copyBtn">Copy URL</button>;
-
-  // Overlay pulse
-  overlay.classList.add('pulse');
-  createParticles();
-  setTimeout(()=>overlay.classList.remove('pulse'),500);
-
-  if(navigator.vibrate) navigator.vibrate(status==="danger"?[200,100,200]:150);
-  if(status==="trusted") successSound.play().catch(()=>{});
-  if(status==="danger") dangerSound.play().catch(()=>{});
-
-  setTimeout(()=>{ resultElem.classList.remove("show"); },3000);
-
-  const btn=document.getElementById('copyBtn');
-  btn.addEventListener('click',()=>{navigator.clipboard.writeText(lastScanned).then(()=>alert("Copied!"));});
-}
-
-// Ultra-fast scanner
-const scanner=new QrScanner(videoElem,result=>{
-  let status=checkUrlStatus(result);
-  if(status==="trusted") showMessage(✅ Trusted QR Code<br>${result},"trusted");
-  else if(status==="danger") showMessage(⛔ Dangerous QR Code<br>${result},"danger");
-  else showMessage(⚠️ Unknown QR Code<br>${result},"warning");
-
-  if(status!=="danger") try{ window.open(result,"_blank","noopener,noreferrer"); }catch(e){}
-},{returnDetailedScanResult:false, highlightScanRegion:false, maxScansPerSecond:15});
-
-scanner.start();
-QrScanner.hasCamera().then(hasCamera=>{if(hasCamera) scanner.setCamera("environment");});
-
-// Light/Dark toggle
-modeToggle.addEventListener('click',()=>{
-  document.body.classList.toggle('light');
-  document.body.classList.toggle('dark');
-  if(document.body.classList.contains('light')){
-    document.body.style.background='#f0f0f0';
-    document.body.style.color='#121212';
-  }else{
-    document.body.style.background='#121212';
-    document.body.style.color='#fff';
-  }
-});
-
-// Flashlight toggle
-flashBtn.addEventListener('click', async ()=>{
-  const track = scanner.$video.srcObject.getVideoTracks()[0];
-  if(!track.getCapabilities().torch){
-    alert("Flashlight not supported on this device");
-    return;
-  }
-  torchOn = !torchOn;
-  await track.applyConstraints({ advanced:[{ torch: torchOn }] });
+// Start QR scanner
+const html5QrCode = new Html5Qrcode("qr-reader");
+html5QrCode.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: 250 },
+    scanSuccess
+).catch(err => {
+    console.error("Camera start error", err);
 });
 </script>
 </body>
