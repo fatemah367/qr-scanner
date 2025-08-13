@@ -2,91 +2,105 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>QR Scanner</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR Code Scanner</title>
 <style>
-/* Your existing CSS — unchanged */
-body {
-  font-family: Arial, sans-serif;
-  text-align: center;
-  background: #f5f5f5;
-}
-#qr-reader {
-  width: 300px;
-  margin: auto;
-}
-.status {
-  margin-top: 20px;
-  font-size: 18px;
-}
-.status.trusted { color: green; }
-.status.danger { color: red; }
-.status.warning { color: orange; }
-button {
-  margin-top: 10px;
-  padding: 8px 15px;
-}
+  body {
+    margin: 0;
+    background: #000;
+    color: white;
+    font-family: sans-serif;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+  #reader {
+    width: 100%;
+    flex: 1;
+  }
+  #result {
+    padding: 10px;
+    text-align: center;
+    background: #111;
+    font-size: 16px;
+    word-break: break-all;
+  }
+  button {
+    padding: 10px;
+    margin: 5px;
+    font-size: 16px;
+    background: #28a745;
+    border: none;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  button:disabled {
+    background: #555;
+  }
 </style>
-<script src="https://unpkg.com/html5-qrcode"></script>
 </head>
 <body>
-<h1>QR Scanner</h1>
-<div id="qr-reader"></div>
-<div id="status" class="status"></div>
+
+<div id="reader"></div>
+<div id="result">Scan a QR code...</div>
 <button id="openBtn" style="display:none;">Open Link</button>
 
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
-let lastScanned = null;
-let openTimer = null;
+let lastResult = '';
+const openBtn = document.getElementById('openBtn');
+const resultDiv = document.getElementById('result');
 
-function showMessage(message, type) {
-    const statusText = document.getElementById("status");
-    statusText.className = "status " + type;
-    statusText.innerHTML = `${message}<br><button id="copyBtn">Copy URL</button>`;
-    document.getElementById("copyBtn").onclick = function() {
-        navigator.clipboard.writeText(lastScanned || "").then(() => {
-            alert("URL copied to clipboard!");
-        });
-    };
+function isSafeLink(url) {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== 'https:') return false; // Must be HTTPS
+    const blocked = ["phishing.com","malware.test","examplebad.com"];
+    return !blocked.some(domain => u.hostname.includes(domain));
+  } catch (e) {
+    return false; // Not even a valid URL
+  }
 }
 
-function scanSuccess(result) {
-    if (!result || result === lastScanned) return;
-    lastScanned = result;
+function handleScan(decodedText) {
+  if (decodedText === lastResult) return;
+  lastResult = decodedText;
+  resultDiv.textContent = decodedText;
 
-    // Check status of QR code
-    let status;
-    if (result.includes("trusted.com")) status = "trusted";
-    else if (result.includes("dangerous.com")) status = "danger";
-    else status = "warning";
-
-    if (status === "trusted") showMessage(`✅ Trusted QR Code<br>${result}`, "trusted");
-    else if (status === "danger") showMessage(`⛔ Dangerous QR Code<br>${result}`, "danger");
-    else showMessage(`⚠️ Unknown QR Code<br>${result}`, "warning");
-
-    const openBtn = document.getElementById("openBtn");
-    openBtn.style.display = status !== "danger" ? "inline-block" : "none";
-    openBtn.onclick = function() { window.open(result, "_blank", "noopener,noreferrer"); };
-
-    // Auto-open only once per scan
-    if (status !== "danger") {
-        // Detect if inside Thunkable Web Viewer
-        const isThunkable = /thunkable/i.test(navigator.userAgent);
-        clearTimeout(openTimer);
-        openTimer = setTimeout(() => {
-            window.open(result, "_blank", "noopener,noreferrer");
-        }, isThunkable ? 200 : 0);
-    }
+  if (isSafeLink(decodedText)) {
+    openBtn.style.display = 'inline-block';
+    setTimeout(() => {
+      window.open(decodedText, '_blank');
+    }, 200);
+  } else {
+    openBtn.style.display = 'none';
+    alert("⚠ Suspicious or invalid link detected!");
+  }
 }
 
-// Start QR scanner
-const html5QrCode = new Html5Qrcode("qr-reader");
-html5QrCode.start(
-    { facingMode: "environment" },
-    { fps: 10, qrbox: 250 },
-    scanSuccess
-).catch(err => {
-    console.error("Camera start error", err);
+openBtn.addEventListener('click', () => {
+  if (isSafeLink(lastResult)) {
+    window.open(lastResult, '_blank');
+  } else {
+    alert("⚠ Suspicious or invalid link detected!");
+  }
+});
+
+const html5QrCode = new Html5Qrcode("reader");
+Html5Qrcode.getCameras().then(cameras => {
+  if (cameras && cameras.length) {
+    html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      handleScan
+    );
+  }
+}).catch(err => {
+  console.error(err);
+  resultDiv.textContent = "Camera access error!";
 });
 </script>
+
 </body>
 </html>
