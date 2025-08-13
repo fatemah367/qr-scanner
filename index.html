@@ -3,144 +3,144 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QR Code Scanner</title>
+<title>High-Quality QR Scanner</title>
 <style>
   body {
     margin: 0;
     background: #000;
     color: white;
-    font-family: sans-serif;
+    font-family: 'Segoe UI', sans-serif;
     display: flex;
     flex-direction: column;
     align-items: center;
     height: 100vh;
-    position: relative;
   }
 
-  /* Dimmed background with hole */
+  /* Dimmed background with a cutout for scanner */
   #dim-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    inset: 0;
     background: rgba(0,0,0,0.75);
-    pointer-events: none;
+    clip-path: inset(10vh calc((100% - min(90vw, 312px)) / 2) calc(100% - (10vh + min(90vw, 312px))) round 16px);
     z-index: 1;
-    clip-path: inset(10vh calc((100% - min(90vw, 312px)) / 2) calc(100% - (10vh + min(90vw, 312px))) round 12px);
+    pointer-events: none;
   }
 
+  /* Scanner container */
   #scanner-container {
     position: relative;
     width: min(90vw, 312px);
     height: min(90vw, 312px);
     margin-top: 10vh;
-    background: transparent;
     overflow: hidden;
-    border-radius: 12px;
+    border-radius: 16px;
     z-index: 2;
+    backdrop-filter: blur(3px);
   }
 
+  /* QR reader feed */
   #reader {
     width: 100%;
     height: 100%;
     background: transparent !important;
   }
-
   #reader video {
     background: transparent !important;
   }
 
-  #overlay {
+  /* Neon corner borders */
+  .corner {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    border: 3px solid lime;
-    box-sizing: border-box;
-    pointer-events: none;
-    border-radius: 12px;
-    animation: glow 1.5s infinite alternate;
+    width: 30px;
+    height: 30px;
+    border: 3px solid #00ffcc;
+    filter: drop-shadow(0 0 6px #00ffcc);
   }
+  .corner.tl { top: 0; left: 0; border-right: none; border-bottom: none; border-radius: 10px 0 0 0; }
+  .corner.tr { top: 0; right: 0; border-left: none; border-bottom: none; border-radius: 0 10px 0 0; }
+  .corner.bl { bottom: 0; left: 0; border-right: none; border-top: none; border-radius: 0 0 0 10px; }
+  .corner.br { bottom: 0; right: 0; border-left: none; border-top: none; border-radius: 0 0 10px 0; }
 
-  @keyframes glow {
-    from { box-shadow: 0 0 5px lime; }
-    to   { box-shadow: 0 0 20px lime; }
-  }
-
+  /* Scan line */
   #scan-line {
     position: absolute;
-    left: 0;
-    width: 100%;
-    height: 4px;
-    background: lime;
-    box-shadow: 0 0 12px lime;
-    animation: scan 2s linear infinite, fade 2s linear infinite;
+    left: 5%;
+    width: 90%;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, #00ffcc, transparent);
+    box-shadow: 0 0 10px #00ffcc;
+    animation: scan 2.2s linear infinite;
   }
-
   @keyframes scan {
-    0% { top: 0; }
-    100% { top: calc(100% - 4px); }
+    0% { top: 5%; }
+    100% { top: 95%; }
   }
 
-  @keyframes fade {
-    0%, 100% { opacity: 0.3; }
-    50% { opacity: 1; }
+  /* Scan success overlay */
+  #success-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,255,200,0.2);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 22px;
+    font-weight: bold;
+    color: white;
+    border-radius: 16px;
+    opacity: 0;
+    pointer-events: none;
+    text-shadow: 0 0 10px #00ffcc;
+  }
+  .show-success {
+    animation: successFlash 1s ease forwards;
+  }
+  @keyframes successFlash {
+    0% { opacity: 0; }
+    20% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { opacity: 0; }
   }
 
+  /* Results panel */
   #result {
     margin-top: 20px;
-    padding: 10px;
-    text-align: center;
-    background: rgba(0,0,0,0.85);
-    font-size: 16px;
-    word-break: break-word;
-    width: 90%;
-    max-width: 400px;
+    padding: 12px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.2);
     border-radius: 8px;
+    backdrop-filter: blur(4px);
+    font-size: 15px;
+    max-width: 400px;
+    word-break: break-word;
     z-index: 3;
   }
+  #result a { color: #00ffcc; }
 
-  #result a {
-    color: #0f0;
-    text-decoration: underline;
-  }
-
+  /* Buttons */
   button {
     display: block;
     width: 90%;
     max-width: 300px;
-    margin: 10px auto 5px auto;
-    padding: 10px;
-    font-size: 16px;
+    margin: 10px auto;
+    padding: 12px;
+    font-size: 15px;
+    font-weight: 500;
     color: #fff;
+    background: linear-gradient(145deg, #00ccaa, #009977);
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    text-align: center;
-    z-index: 3;
+    transition: all 0.2s;
   }
-
-  #openBtn {
-    background: #1a73e8;
+  button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0,255,204,0.3);
   }
-
   #openBtn:disabled {
     background: #555;
     cursor: not-allowed;
-  }
-
-  #restartBtn {
-    background: #28a745;
-  }
-
-  #uploadBtn {
-    background: #ff9800;
-  }
-
-  #uploadInput {
-    display: none;
+    box-shadow: none;
   }
 </style>
 </head>
@@ -150,32 +150,36 @@
 
 <div id="scanner-container">
   <div id="reader"></div>
-  <div id="overlay"></div>
+  <div class="corner tl"></div>
+  <div class="corner tr"></div>
+  <div class="corner bl"></div>
+  <div class="corner br"></div>
   <div id="scan-line"></div>
+  <div id="success-overlay">SCAN SUCCESS ✅</div>
 </div>
 
 <div id="result">Scan a QR code...</div>
 <button id="openBtn" disabled>Open Last Scanned Link</button>
 <button id="restartBtn">New Scan</button>
 <button id="uploadBtn">Upload QR Code Image</button>
-<input type="file" id="uploadInput" accept="image/*">
+<input type="file" id="uploadInput" accept="image/*" hidden>
 
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
 let lastResult = '';
+let html5QrCode;
+const scanLine = document.getElementById('scan-line');
+const successOverlay = document.getElementById('success-overlay');
 const resultDiv = document.getElementById('result');
 const openBtn = document.getElementById('openBtn');
 const restartBtn = document.getElementById('restartBtn');
 const uploadBtn = document.getElementById('uploadBtn');
 const uploadInput = document.getElementById('uploadInput');
-let html5QrCode;
 
 function isSafeLink(url) {
   try {
     const u = new URL(url);
-    if (u.protocol !== 'https:') return false;
-    const blocked = ["phishing.com","malware.test","examplebad.com"];
-    return !blocked.some(domain => u.hostname.includes(domain));
+    return u.protocol === 'https:' && !["phishing.com","malware.test","examplebad.com"].some(d => u.hostname.includes(d));
   } catch {
     return false;
   }
@@ -186,65 +190,57 @@ function handleScan(decodedText) {
   lastResult = decodedText;
   openBtn.disabled = false;
 
-  if (isSafeLink(decodedText)) {
-    resultDiv.innerHTML = `Safe link detected: <a href="${decodedText}" target="_blank">${decodedText}</a>`;
-  } else {
-    resultDiv.innerHTML = `⚠ Suspicious link detected: <a href="${decodedText}" target="_blank">${decodedText}</a>`;
-  }
+  // Pause scan line
+  scanLine.style.animationPlayState = 'paused';
+
+  // Show success overlay
+  successOverlay.classList.add('show-success');
+  setTimeout(() => {
+    successOverlay.classList.remove('show-success');
+    scanLine.style.animationPlayState = 'running';
+  }, 1000);
+
+  resultDiv.innerHTML = isSafeLink(decodedText)
+    ? `Safe link detected: <a href="${decodedText}" target="_blank">${decodedText}</a>`
+    : `⚠ Suspicious link detected: <a href="${decodedText}" target="_blank">${decodedText}</a>`;
 }
 
-// Instant reset for new scan
 restartBtn.addEventListener('click', () => {
   lastResult = '';
   openBtn.disabled = true;
   resultDiv.textContent = "Ready to scan...";
+  scanLine.style.animationPlayState = 'running';
 });
 
 openBtn.addEventListener('click', () => {
-  if (lastResult) {
-    window.open(lastResult, '_blank');
-  }
+  if (lastResult) window.open(lastResult, '_blank');
 });
 
-uploadBtn.addEventListener('click', () => {
-  uploadInput.click();
-});
+uploadBtn.addEventListener('click', () => uploadInput.click());
 
-uploadInput.addEventListener('change', (e) => {
-  if (e.target.files.length === 0) return;
+uploadInput.addEventListener('change', e => {
+  if (!e.target.files.length) return;
   const file = e.target.files[0];
   Html5Qrcode.scanFile(file, true)
-    .then(decodedText => {
-      handleScan(decodedText);
-    })
-    .catch(err => {
-      resultDiv.textContent = "No QR code found in image.";
-      console.error(err);
-    });
+    .then(decodedText => handleScan(decodedText))
+    .catch(() => resultDiv.textContent = "No QR code found in image.");
 });
 
 function startScanner() {
   html5QrCode = new Html5Qrcode("reader", { formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE] });
   Html5Qrcode.getCameras().then(cameras => {
     if (cameras && cameras.length) {
-      const scannerSize = Math.min(window.innerWidth * 0.9, 312);
-      html5QrCode.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: scannerSize, height: scannerSize } },
-        handleScan
-      );
+      const size = Math.min(window.innerWidth * 0.9, 312);
+      html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: size, height: size } }, handleScan);
     } else {
-      resultDiv.textContent = "No camera found! You can still upload a QR image below.";
+      resultDiv.textContent = "No camera found! You can still upload a QR image.";
     }
-  }).catch(err => {
-    console.error(err);
-    resultDiv.textContent = "Camera access error! You can still upload a QR image below.";
+  }).catch(() => {
+    resultDiv.textContent = "Camera error! Try uploading a QR image.";
   });
 }
 
 startScanner();
 </script>
-
 </body>
 </html>
-
