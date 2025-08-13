@@ -1,106 +1,79 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QR Code Scanner</title>
-<style>
-  body {
-    margin: 0;
-    background: #000;
-    color: white;
-    font-family: sans-serif;
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-  }
-  #reader {
-    width: 100%;
-    flex: 1;
-  }
-  #result {
-    padding: 10px;
-    text-align: center;
-    background: #111;
-    font-size: 16px;
-    word-break: break-all;
-  }
-  button {
-    padding: 10px;
-    margin: 5px;
-    font-size: 16px;
-    background: #28a745;
-    border: none;
-    color: white;
-    border-radius: 5px;
-    cursor: pointer;
-  }
-  button:disabled {
-    background: #555;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>High Quality QR Code Reader</title>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden; /* Prevent scrolling */
+      font-family: Arial, sans-serif;
+    }
+
+    #reader {
+      width: 100%;
+      height: calc(100vh - 60px); /* Leave space for button */
+    }
+
+    #openLinkBtn {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 60px;
+      font-size: 18px;
+      background-color: #2196F3;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+  </style>
+
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 </head>
 <body>
 
-<div id="reader"></div>
-<div id="result">Scan a QR code...</div>
-<button id="openBtn" style="display:none;">Open Link</button>
+  <div id="reader"></div>
+  <button id="openLinkBtn" disabled>Open Link</button>
 
-<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script>
-let lastResult = '';
-const openBtn = document.getElementById('openBtn');
-const resultDiv = document.getElementById('result');
+  <script>
+    let scannedLink = "";
 
-function isSafeLink(url) {
-  try {
-    const u = new URL(url);
-    if (u.protocol !== 'https:') return false; // Must be HTTPS
-    const blocked = ["phishing.com","malware.test","examplebad.com"];
-    return !blocked.some(domain => u.hostname.includes(domain));
-  } catch (e) {
-    return false; // Not even a valid URL
-  }
-}
+    function isSafeLink(url) {
+      try {
+        let parsed = new URL(url);
+        return (parsed.protocol === "https:"); // Simple fraud filter
+      } catch {
+        return false;
+      }
+    }
 
-function handleScan(decodedText) {
-  if (decodedText === lastResult) return;
-  lastResult = decodedText;
-  resultDiv.textContent = decodedText;
+    function onScanSuccess(decodedText) {
+      if (isSafeLink(decodedText)) {
+        scannedLink = decodedText;
+        document.getElementById("openLinkBtn").disabled = false;
+      } else {
+        scannedLink = "";
+        alert("This QR code may be unsafe or not a valid HTTPS link.");
+      }
+    }
 
-  if (isSafeLink(decodedText)) {
-    openBtn.style.display = 'inline-block';
-    setTimeout(() => {
-      window.open(decodedText, '_blank');
-    }, 200);
-  } else {
-    openBtn.style.display = 'none';
-    alert("⚠ Suspicious or invalid link detected!");
-  }
-}
+    document.getElementById("openLinkBtn").addEventListener("click", function () {
+      if (scannedLink) {
+        window.open(scannedLink, "_blank");
+      }
+    });
 
-openBtn.addEventListener('click', () => {
-  if (isSafeLink(lastResult)) {
-    window.open(lastResult, '_blank');
-  } else {
-    alert("⚠ Suspicious or invalid link detected!");
-  }
-});
-
-const html5QrCode = new Html5Qrcode("reader");
-Html5Qrcode.getCameras().then(cameras => {
-  if (cameras && cameras.length) {
-    html5QrCode.start(
+    new Html5Qrcode("reader").start(
       { facingMode: "environment" },
-      { fps: 10, qrbox: { width: 250, height: 250 } },
-      handleScan
-    );
-  }
-}).catch(err => {
-  console.error(err);
-  resultDiv.textContent = "Camera access error!";
-});
-</script>
+      { fps: 10, qrbox: 250 },
+      onScanSuccess
+    ).catch(err => console.error("Camera start failed:", err));
+  </script>
 
 </body>
 </html>
