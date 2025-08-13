@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QR Code Scanner</title>
 <style>
   body {
@@ -12,22 +12,74 @@
     font-family: sans-serif;
     display: flex;
     flex-direction: column;
+    align-items: center;
     height: 100vh;
+  }
+
+  #scanner-container {
+    position: relative;
+    width: min(90vw, 312px);
+    height: min(90vw, 312px);
+    margin-top: 10vh;
+    background: black;
     overflow: hidden;
+    border-radius: 12px;
   }
 
   #reader {
-    flex: 1;
     width: 100%;
+    height: 100%;
     object-fit: cover;
   }
 
+  #overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: 3px solid lime;
+    box-sizing: border-box;
+    pointer-events: none;
+    border-radius: 12px;
+    animation: glow 1.5s infinite alternate;
+  }
+
+  @keyframes glow {
+    from { box-shadow: 0 0 5px lime; }
+    to   { box-shadow: 0 0 20px lime; }
+  }
+
+  #scan-line {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: lime;
+    box-shadow: 0 0 12px lime;
+    animation: scan 2s linear infinite, fade 2s linear infinite;
+  }
+
+  @keyframes scan {
+    0% { top: 0; }
+    100% { top: calc(100% - 4px); }
+  }
+
+  @keyframes fade {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+  }
+
   #result {
-    padding: 12px;
+    margin-top: 20px;
+    padding: 10px;
     text-align: center;
     background: rgba(0,0,0,0.85);
     font-size: 16px;
     word-break: break-word;
+    width: 90%;
+    max-width: 400px;
+    border-radius: 8px;
   }
 
   #result a {
@@ -35,38 +87,53 @@
     text-decoration: underline;
   }
 
-  #openBtn {
+  button {
     display: block;
     width: 90%;
     max-width: 300px;
-    margin: 10px auto 15px auto;
+    margin: 10px auto 5px auto;
     padding: 10px;
     font-size: 16px;
     color: #fff;
-    background: #1a73e8;
     border: none;
     border-radius: 8px;
     cursor: pointer;
     text-align: center;
   }
 
+  #openBtn {
+    background: #1a73e8;
+  }
+
   #openBtn:disabled {
     background: #555;
     cursor: not-allowed;
+  }
+
+  #restartBtn {
+    background: #28a745;
   }
 </style>
 </head>
 <body>
 
-<div id="reader"></div>
+<div id="scanner-container">
+  <div id="reader"></div>
+  <div id="overlay"></div>
+  <div id="scan-line"></div>
+</div>
+
 <div id="result">Scan a QR code...</div>
 <button id="openBtn" disabled>Open Last Scanned Link</button>
+<button id="restartBtn">Restart Scanner</button>
 
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
 let lastResult = '';
 const resultDiv = document.getElementById('result');
 const openBtn = document.getElementById('openBtn');
+const restartBtn = document.getElementById('restartBtn');
+let html5QrCode; // global so we can stop/restart
 
 function isSafeLink(url) {
   try {
@@ -99,28 +166,50 @@ function handleScan(decodedText) {
   }
 }
 
-// Open button click handler
 openBtn.addEventListener('click', () => {
   if (lastResult) {
     window.open(lastResult, '_blank');
   }
 });
 
-const html5QrCode = new Html5Qrcode("reader");
-Html5Qrcode.getCameras().then(cameras => {
-  if (cameras && cameras.length) {
-    html5QrCode.start(
-      { facingMode: "environment" },
-      { fps: 10, qrbox: (window.innerWidth < 400 ? 250 : 300) },
-      handleScan
-    );
-  } else {
-    resultDiv.textContent = "No camera found!";
-  }
-}).catch(err => {
-  console.error(err);
-  resultDiv.textContent = "Camera access error!";
+restartBtn.addEventListener('click', () => {
+  restartScanner();
 });
+
+function startScanner() {
+  html5QrCode = new Html5Qrcode("reader");
+  Html5Qrcode.getCameras().then(cameras => {
+    if (cameras && cameras.length) {
+      const scannerSize = Math.min(window.innerWidth * 0.9, 312);
+      html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: scannerSize, height: scannerSize } },
+        handleScan
+      );
+    } else {
+      resultDiv.textContent = "No camera found!";
+    }
+  }).catch(err => {
+    console.error(err);
+    resultDiv.textContent = "Camera access error!";
+  });
+}
+
+function restartScanner() {
+  if (html5QrCode) {
+    html5QrCode.stop().then(() => {
+      startScanner();
+    }).catch(err => {
+      console.error("Restart failed:", err);
+      startScanner();
+    });
+  } else {
+    startScanner();
+  }
+}
+
+// Start when page loads
+startScanner();
 </script>
 
 </body>
