@@ -14,6 +14,20 @@
     flex-direction: column;
     align-items: center;
     height: 100vh;
+    position: relative;
+  }
+
+  /* Dimmed background with hole */
+  #dim-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.75);
+    pointer-events: none;
+    z-index: 1;
+    clip-path: inset(10vh calc((100% - min(90vw, 312px)) / 2) calc(100% - (10vh + min(90vw, 312px))) round 12px);
   }
 
   #scanner-container {
@@ -21,27 +35,22 @@
     width: min(90vw, 312px);
     height: min(90vw, 312px);
     margin-top: 10vh;
+    background: transparent;
     overflow: hidden;
     border-radius: 12px;
-    background: transparent; /* no black fill */
+    z-index: 2;
   }
 
   #reader {
     width: 100%;
     height: 100%;
-    background: transparent;
-    opacity: 0; /* fade in effect */
-    transition: opacity 0.4s ease;
+    background: transparent !important;
   }
 
-  /* Ensure video covers fully without black bars */
   #reader video {
-    object-fit: cover !important;
-    width: 100% !important;
-    height: 100% !important;
+    background: transparent !important;
   }
 
-  /* Overlay green border */
   #overlay {
     position: absolute;
     top: 0;
@@ -60,7 +69,6 @@
     to   { box-shadow: 0 0 20px lime; }
   }
 
-  /* Scan line animation */
   #scan-line {
     position: absolute;
     left: 0;
@@ -81,20 +89,6 @@
     50% { opacity: 1; }
   }
 
-  /* Loading text */
-  #loading {
-    position: absolute;
-    width: 100%;
-    top: 50%;
-    transform: translateY(-50%);
-    text-align: center;
-    font-size: 16px;
-    color: #0f0;
-    background: rgba(0,0,0,0.5);
-    padding: 6px 0;
-    border-radius: 8px;
-  }
-
   #result {
     margin-top: 20px;
     padding: 10px;
@@ -105,6 +99,7 @@
     width: 90%;
     max-width: 400px;
     border-radius: 8px;
+    z-index: 3;
   }
 
   #result a {
@@ -124,6 +119,7 @@
     border-radius: 8px;
     cursor: pointer;
     text-align: center;
+    z-index: 3;
   }
 
   #openBtn {
@@ -138,20 +134,31 @@
   #restartBtn {
     background: #28a745;
   }
+
+  #uploadBtn {
+    background: #ff9800;
+  }
+
+  #uploadInput {
+    display: none;
+  }
 </style>
 </head>
 <body>
+
+<div id="dim-overlay"></div>
 
 <div id="scanner-container">
   <div id="reader"></div>
   <div id="overlay"></div>
   <div id="scan-line"></div>
-  <div id="loading">📷 Loading camera…</div>
 </div>
 
 <div id="result">Scan a QR code...</div>
 <button id="openBtn" disabled>Open Last Scanned Link</button>
-<button id="restartBtn">Restart Scanner</button>
+<button id="restartBtn">New Scan</button>
+<button id="uploadBtn">Upload QR Code Image</button>
+<input type="file" id="uploadInput" accept="image/*">
 
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
@@ -159,7 +166,8 @@ let lastResult = '';
 const resultDiv = document.getElementById('result');
 const openBtn = document.getElementById('openBtn');
 const restartBtn = document.getElementById('restartBtn');
-const loadingDiv = document.getElementById('loading');
+const uploadBtn = document.getElementById('uploadBtn');
+const uploadInput = document.getElementById('uploadInput');
 let html5QrCode;
 
 function isSafeLink(url) {
@@ -179,19 +187,18 @@ function handleScan(decodedText) {
   openBtn.disabled = false;
 
   if (isSafeLink(decodedText)) {
-    const opened = window.open(decodedText, '_blank');
-    if (!opened) {
-      resultDiv.innerHTML = `Safe link detected: <a href="${decodedText}" target="_blank">${decodedText}</a>`;
-    } else {
-      resultDiv.textContent = `Safe link opened automatically!`;
-    }
+    resultDiv.innerHTML = `Safe link detected: <a href="${decodedText}" target="_blank">${decodedText}</a>`;
   } else {
-    if (confirm("⚠ Suspicious link detected! Do you want to open it anyway?")) {
-      window.open(decodedText, '_blank');
-    }
-    resultDiv.innerHTML = `Scanned: <a href="${decodedText}" target="_blank">${decodedText}</a>`;
+    resultDiv.innerHTML = `⚠ Suspicious link detected: <a href="${decodedText}" target="_blank">${decodedText}</a>`;
   }
 }
+
+// Instant reset for new scan
+restartBtn.addEventListener('click', () => {
+  lastResult = '';
+  openBtn.disabled = true;
+  resultDiv.textContent = "Ready to scan...";
+});
 
 openBtn.addEventListener('click', () => {
   if (lastResult) {
@@ -199,12 +206,25 @@ openBtn.addEventListener('click', () => {
   }
 });
 
-restartBtn.addEventListener('click', () => {
-  restartScanner();
+uploadBtn.addEventListener('click', () => {
+  uploadInput.click();
+});
+
+uploadInput.addEventListener('change', (e) => {
+  if (e.target.files.length === 0) return;
+  const file = e.target.files[0];
+  Html5Qrcode.scanFile(file, true)
+    .then(decodedText => {
+      handleScan(decodedText);
+    })
+    .catch(err => {
+      resultDiv.textContent = "No QR code found in image.";
+      console.error(err);
+    });
 });
 
 function startScanner() {
-  html5QrCode = new Html5Qrcode("reader");
+  html5QrCode = new Html5Qrcode("reader", { formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE] });
   Html5Qrcode.getCameras().then(cameras => {
     if (cameras && cameras.length) {
       const scannerSize = Math.min(window.innerWidth * 0.9, 312);
@@ -212,33 +232,16 @@ function startScanner() {
         { facingMode: "environment" },
         { fps: 10, qrbox: { width: scannerSize, height: scannerSize } },
         handleScan
-      ).then(() => {
-        document.getElementById('reader').style.opacity = '1';
-        loadingDiv.style.display = 'none';
-      });
+      );
     } else {
-      resultDiv.textContent = "No camera found!";
+      resultDiv.textContent = "No camera found! You can still upload a QR image below.";
     }
   }).catch(err => {
     console.error(err);
-    resultDiv.textContent = "Camera access error!";
+    resultDiv.textContent = "Camera access error! You can still upload a QR image below.";
   });
 }
 
-function restartScanner() {
-  if (html5QrCode) {
-    html5QrCode.stop().then(() => {
-      startScanner();
-    }).catch(err => {
-      console.error("Restart failed:", err);
-      startScanner();
-    });
-  } else {
-    startScanner();
-  }
-}
-
-// Start when page loads
 startScanner();
 </script>
 
