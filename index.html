@@ -2,83 +2,156 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>QR Code Scanner with Fraud Filter</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>High-Quality QR Code App</title>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;700&display=swap" rel="stylesheet">
+
   <style>
-    body {
-      margin: 0; 
-      font-family: Arial, sans-serif; 
-      text-align: center; 
-      background: #222; 
-      color: white;
-    }
-    video {
-      width: 100vw; 
-      height: 100vh; 
-      object-fit: cover;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; font-family: 'Poppins', sans-serif; background: #121212; color: #fff; }
+
+    /* Video */
+    video { width: 100vw; height: 100vh; object-fit: cover; }
+
+    /* QR Result Box */
     #result {
-      position: fixed; 
-      top: 10px; 
-      left: 0; 
-      right: 0; 
-      background: rgba(0,0,0,0.7); 
-      font-size: 24px; 
-      padding: 10px;
-      z-index: 10;
+      position: fixed;
+      bottom: 25px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 18px 28px;
+      border-radius: 14px;
+      font-size: 18px;
+      max-width: 90%;
+      text-align: left;
+      opacity: 0;
+      pointer-events: none;
+      box-shadow: 0 5px 25px rgba(0,0,0,0.6);
+      transition: all 0.4s ease-in-out;
+      backdrop-filter: blur(8px);
+      line-height: 1.4;
     }
-    #trusted {
-      color: #4CAF50;
+
+    .trusted { background: rgba(76, 175, 80, 0.95); }
+    .warning { background: rgba(255, 193, 7, 0.95); color: black; }
+    .danger  { background: rgba(244, 67, 54, 0.95); }
+
+    .show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* Copy Button */
+    #copyBtn {
+      margin-top: 10px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 16px;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      transition: 0.2s;
     }
-    #untrusted {
-      color: #FF5252;
+    #copyBtn:hover { opacity: 0.85; }
+
+    /* Light/Dark Toggle */
+    #modeToggle {
+      position: fixed;
+      top: 15px;
+      right: 15px;
+      padding: 10px 15px;
+      border-radius: 12px;
+      font-size: 14px;
+      cursor: pointer;
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(6px);
+      transition: 0.3s;
     }
+    #modeToggle:hover { background: rgba(255,255,255,0.25); }
+    .light { background: #f0f0f0; color: #121212; }
   </style>
 </head>
-<body>
 
-  <div id="result">Scanning...</div>
+<body>
   <video id="video"></video>
+  <div id="result">Scanning...<br><button id="copyBtn">Copy URL</button></div>
+  <button id="modeToggle">Toggle Light/Dark</button>
 
   <script type="module">
     import QrScanner from "https://unpkg.com/qr-scanner@1.4.2/qr-scanner.min.js";
 
     const videoElem = document.getElementById('video');
     const resultElem = document.getElementById('result');
+    const copyBtn = document.getElementById('copyBtn');
+    const modeToggle = document.getElementById('modeToggle');
 
-    // Trusted domains list
-    const trustedDomains = [
-      "example.com",
-      "mytrustedsite.org",
-      "mycompany.net"
-    ];
+    const successSound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-positive-notification-951.mp3');
+    const dangerSound  = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-alert-quick-warning-916.mp3');
 
-    // Function to check if a URL is trusted
-    function isTrustedUrl(url) {
+    const trustedDomains = ["example.com", "mytrustedsite.org", "mycompany.net"];
+    const badDomains     = ["phishingsite.com", "malware-test.org"];
+
+    let lastScanned = '';
+
+    function checkUrlStatus(url) {
       try {
-        const parsedUrl = new URL(url);
-        return trustedDomains.some(domain => parsedUrl.hostname.endsWith(domain));
+        const parsed = new URL(url);
+        if (trustedDomains.some(domain => parsed.hostname.endsWith(domain))) return "trusted";
+        if (badDomains.some(domain => parsed.hostname.endsWith(domain))) return "danger";
+        return "warning";
       } catch {
-        // Not a valid URL → untrusted
-        return false;
+        return "warning";
       }
     }
 
-    // Create scanner
+    function showMessage(message, status) {
+      resultElem.className = status + " show";
+      resultElem.innerHTML = message + `<br><button id="copyBtn">Copy URL</button>`;
+      lastScanned = message.match(/https?:\/\/[^\s<]+/)?.[0] || '';
+
+      // Sound & vibration
+      if (navigator.vibrate) navigator.vibrate(status === "danger" ? [200,100,200] : 150);
+      if (status === "trusted") successSound.play().catch(()=>{});
+      if (status === "danger") dangerSound.play().catch(()=>{});
+
+      // Auto-hide
+      setTimeout(() => { resultElem.classList.remove("show"); }, 5000);
+
+      // Re-attach copy button event
+      const btn = document.getElementById('copyBtn');
+      btn.addEventListener('click', () => {
+        if (lastScanned) {
+          navigator.clipboard.writeText(lastScanned).then(() => alert("Copied to clipboard!"));
+        }
+      });
+    }
+
+    // QR Scanner
     const scanner = new QrScanner(videoElem, result => {
-      if (isTrustedUrl(result)) {
-        resultElem.innerHTML = `<span id="trusted">✅ Trusted QR Code: ${result}</span>`;
-        window.open(result, "_blank"); // Open trusted link
-        scanner.stop(); // Stop scanning after opening
+      let status = checkUrlStatus(result);
+
+      if (status === "trusted") showMessage(`✅ <strong>Trusted QR Code</strong><br>${result}`, "trusted");
+      else if (status === "danger") showMessage(`⛔ <strong>Dangerous QR Code</strong><br>${result}`, "danger");
+      else showMessage(`⚠️ <strong>Unknown QR Code</strong><br>${result}`, "warning");
+
+      if (status !== "danger") try { window.open(result, "_blank", "noopener,noreferrer"); } catch(e){}
+
+    });
+
+    // Start scanning & use back camera
+    scanner.start();
+    QrScanner.hasCamera().then(hasCamera => { if(hasCamera) scanner.setCamera("environment"); });
+
+    // Light/Dark Mode Toggle
+    modeToggle.addEventListener('click', () => {
+      document.body.classList.toggle('light');
+      document.body.classList.toggle('dark');
+      if(document.body.classList.contains('light')){
+        document.body.style.background = '#f0f0f0'; document.body.style.color = '#121212';
       } else {
-        resultElem.innerHTML = `<span id="untrusted">⚠️ Untrusted or potentially fraudulent QR Code detected: ${result}</span>`;
-        // Optionally: block opening untrusted links
+        document.body.style.background = '#121212'; document.body.style.color = '#fff';
       }
     });
 
-    // Start scanning
-    scanner.start();
   </script>
-
 </body>
 </html>
