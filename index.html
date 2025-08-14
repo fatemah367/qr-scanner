@@ -210,6 +210,7 @@ restartBtn.addEventListener('click', () => {
   openBtn.disabled = true;
   resultDiv.textContent = "Ready to scan...";
   scanLine.style.animationPlayState = 'running';
+  startScanner(); // ✅ restart live scanning
 });
 
 openBtn.addEventListener('click', () => {
@@ -218,15 +219,28 @@ openBtn.addEventListener('click', () => {
 
 uploadBtn.addEventListener('click', () => uploadInput.click());
 
-uploadInput.addEventListener('change', e => {
+uploadInput.addEventListener('change', async e => {
   if (!e.target.files.length) return;
   const file = e.target.files[0];
-  Html5Qrcode.scanFile(file, true)
+
+  // ✅ stop live scanner before processing upload
+  if (html5QrCode) {
+    try {
+      await html5QrCode.stop();
+    } catch (err) {
+      console.warn("Scanner already stopped or error stopping:", err);
+    }
+  }
+
+  html5QrCode.scanFile(file, true)
     .then(decodedText => handleScan(decodedText))
     .catch(() => resultDiv.textContent = "No QR code found in image.");
 });
 
 function startScanner() {
+  if (html5QrCode) {
+    try { html5QrCode.clear(); } catch {}
+  }
   html5QrCode = new Html5Qrcode("reader", { formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE] });
   Html5Qrcode.getCameras().then(cameras => {
     if (cameras && cameras.length) {
