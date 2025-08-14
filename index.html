@@ -7,8 +7,8 @@
 <style>
   body {
     margin: 0;
-    background: #000;
-    color: white;
+    background: #fff; /* ✅ White background */
+    color: #000;      /* ✅ Dark text */
     font-family: 'Segoe UI', sans-serif;
     display: flex;
     flex-direction: column;
@@ -20,7 +20,7 @@
   #dim-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.75);
+    background: rgba(255,255,255,0.75); /* ✅ Light dim overlay */
     clip-path: inset(10vh calc((100% - min(90vw, 312px)) / 2) calc(100% - (10vh + min(90vw, 312px))) round 16px);
     z-index: 1;
     pointer-events: none;
@@ -53,8 +53,8 @@
     position: absolute;
     width: 30px;
     height: 30px;
-    border: 3px solid #00ffcc;
-    filter: drop-shadow(0 0 6px #00ffcc);
+    border: 3px solid #00cc99;
+    filter: drop-shadow(0 0 6px #00cc99);
   }
   .corner.tl { top: 0; left: 0; border-right: none; border-bottom: none; border-radius: 10px 0 0 0; }
   .corner.tr { top: 0; right: 0; border-left: none; border-bottom: none; border-radius: 0 10px 0 0; }
@@ -67,8 +67,8 @@
     left: 5%;
     width: 90%;
     height: 3px;
-    background: linear-gradient(90deg, transparent, #00ffcc, transparent);
-    box-shadow: 0 0 10px #00ffcc;
+    background: linear-gradient(90deg, transparent, #00cc99, transparent);
+    box-shadow: 0 0 10px #00cc99;
     animation: scan 2.2s linear infinite;
   }
   @keyframes scan {
@@ -80,17 +80,17 @@
   #success-overlay {
     position: absolute;
     inset: 0;
-    background: rgba(0,255,200,0.2);
+    background: rgba(0,200,150,0.15); /* ✅ Softer overlay for white bg */
     display: flex;
     justify-content: center;
     align-items: center;
     font-size: 22px;
     font-weight: bold;
-    color: white;
+    color: #000; /* ✅ Dark text */
     border-radius: 16px;
     opacity: 0;
     pointer-events: none;
-    text-shadow: 0 0 10px #00ffcc;
+    text-shadow: 0 0 10px #00cc99;
   }
   .show-success {
     animation: successFlash 1s ease forwards;
@@ -106,16 +106,17 @@
   #result {
     margin-top: 20px;
     padding: 12px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(0,0,0,0.05); /* ✅ light gray panel */
+    border: 1px solid rgba(0,0,0,0.15);
     border-radius: 8px;
     backdrop-filter: blur(4px);
     font-size: 15px;
     max-width: 400px;
     word-break: break-word;
     z-index: 3;
+    color: #000; /* ✅ dark text */
   }
-  #result a { color: #00ffcc; }
+  #result a { color: #009977; }
 
   /* Buttons */
   button {
@@ -135,10 +136,11 @@
   }
   button:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 10px rgba(0,255,204,0.3);
+    box-shadow: 0 4px 10px rgba(0,200,150,0.3);
   }
   #openBtn:disabled {
-    background: #555;
+    background: #ccc;
+    color: #666;
     cursor: not-allowed;
     box-shadow: none;
   }
@@ -160,9 +162,9 @@
     border: none;
     font-size: 20px;
     cursor: pointer;
-    background: rgba(0,0,0,0.6);
-    color: white;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    background: rgba(255,255,255,0.9); /* ✅ white circle */
+    color: #000; /* ✅ dark emoji */
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
   }
 </style>
 </head>
