@@ -142,6 +142,28 @@
     cursor: not-allowed;
     box-shadow: none;
   }
+
+  /* Floating flash/share buttons */
+  #floating-buttons {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 5;
+  }
+  .circle-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    background: rgba(0,0,0,0.6);
+    color: white;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  }
 </style>
 </head>
 <body>
@@ -156,6 +178,12 @@
   <div class="corner br"></div>
   <div id="scan-line"></div>
   <div id="success-overlay">SCAN SUCCESS ✅</div>
+
+  <!-- Floating buttons -->
+  <div id="floating-buttons">
+    <button id="flashBtn" class="circle-btn">⚡</button>
+    <button id="shareBtn" class="circle-btn">📤</button>
+  </div>
 </div>
 
 <div id="result">Scan a QR code...</div>
@@ -175,6 +203,8 @@ const openBtn = document.getElementById('openBtn');
 const restartBtn = document.getElementById('restartBtn');
 const uploadBtn = document.getElementById('uploadBtn');
 const uploadInput = document.getElementById('uploadInput');
+const flashBtn = document.getElementById('flashBtn');
+const shareBtn = document.getElementById('shareBtn');
 
 function isSafeLink(url) {
   try {
@@ -223,7 +253,6 @@ uploadInput.addEventListener('change', async e => {
   if (!e.target.files.length) return;
   const file = e.target.files[0];
 
-  // ✅ stop live scanner before processing upload
   if (html5QrCode) {
     try {
       await html5QrCode.stop();
@@ -245,7 +274,12 @@ function startScanner() {
   Html5Qrcode.getCameras().then(cameras => {
     if (cameras && cameras.length) {
       const size = Math.min(window.innerWidth * 0.9, 312);
-      html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: size, height: size } }, handleScan);
+      html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: size, height: size } }, handleScan)
+      .then(() => {
+        // Attach track reference for torch
+        const stream = document.querySelector("video").srcObject;
+        if (stream) window.videoTrack = stream.getVideoTracks()[0];
+      });
     } else {
       resultDiv.textContent = "No camera found! You can still upload a QR image.";
     }
@@ -253,6 +287,37 @@ function startScanner() {
     resultDiv.textContent = "Camera error! Try uploading a QR image.";
   });
 }
+
+flashBtn.addEventListener('click', async () => {
+  try {
+    if (window.videoTrack && window.videoTrack.getCapabilities().torch) {
+      const torchOn = !(window.videoTrack.getSettings().torch || false);
+      await window.videoTrack.applyConstraints({ advanced: [{ torch: torchOn }] });
+    } else {
+      alert("Flash not supported on this device.");
+    }
+  } catch (err) {
+    alert("Flash toggle failed.");
+  }
+});
+
+shareBtn.addEventListener('click', async () => {
+  if (!lastResult) {
+    alert("No QR code scanned yet.");
+    return;
+  }
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: "QR Code Result",
+        text: lastResult,
+        url: lastResult.startsWith("http") ? lastResult : undefined
+      });
+    } catch {}
+  } else {
+    alert("Sharing not supported on this device.");
+  }
+});
 
 startScanner();
 </script>
